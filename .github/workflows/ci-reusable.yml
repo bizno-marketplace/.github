@@ -1,0 +1,58 @@
+name: Reusable CI
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        required: false
+        type: string
+        default: '25'
+      coverage-threshold:
+        required: false
+        type: number
+        default: 80
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Run tests
+        run: mvn verify -q
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(cat target/site/jacoco/jacoco.csv | awk -F',' '
+            NR>1 {
+              missed += $4 + $6
+              covered += $5 + $7
+            }
+            END {
+              total = missed + covered
+              if (total > 0) printf "%.0f", (covered / total * 100)
+              else print "0"
+            }
+          ')
+          echo "Coverage: $COVERAGE%"
+          if [ "$COVERAGE" -lt ${{ inputs.coverage-threshold }} ]; then
+            echo "❌ Coverage $COVERAGE% is below the required ${{ inputs.coverage-threshold }}%"
+            exit 1
+          fi
+          echo "✅ Coverage $COVERAGE% meets the required ${{ inputs.coverage-threshold }}%"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
