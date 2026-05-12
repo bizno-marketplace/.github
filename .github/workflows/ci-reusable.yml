@@ -86,7 +86,7 @@ jobs:
           distribution: 'corretto'
           cache: maven
       - name: Check coverage threshold
-        run: mvn verify -DskipTests
+        run: mvn verify -q
       - name: Check coverage percentage
         run: |
           COVERAGE=$(cat target/site/jacoco/jacoco.csv | awk -F',' '
